@@ -1,0 +1,41 @@
+# enable Docker for your repository
+options:
+  docker: true
+
+pipelines:
+  tags:
+    "v*.*.*-*":
+      - step:
+          caches:
+          - docker
+          #python image with aws-cli installed
+          image: tstrohmeier/awscli:3.6.4
+          script:
+            - export AWS_REGISTRY_NAME=app/${BITBUCKET_REPO_SLUG}
+            - export AWS_REGISTRY_URL=408789307731.dkr.ecr.ap-southeast-1.amazonaws.com/$AWS_REGISTRY_NAME 
+            # aws login and create repository if not exists
+            - export ECR_INIT_SCRIPT=/tmp/ecr_init.sh
+            - echo 'aws ecr describe-repositories --region ap-southeast-1 --repository-names "${AWS_REGISTRY_NAME}"' > $ECR_INIT_SCRIPT
+            - echo 'RET=$?' >> $ECR_INIT_SCRIPT
+            - echo 'if [[ $RET -ne 0 ]]' >> $ECR_INIT_SCRIPT
+            - echo 'then' >> $ECR_INIT_SCRIPT
+            - echo 'aws ecr create-repository --region ap-southeast-1 --repository-name "${AWS_REGISTRY_NAME}"' >> $ECR_INIT_SCRIPT
+            - echo 'RET=$?' >> $ECR_INIT_SCRIPT
+            - echo 'fi' >> $ECR_INIT_SCRIPT
+            - echo 'exit $RET' >> $ECR_INIT_SCRIPT
+            - bash $ECR_INIT_SCRIPT
+            - eval $(aws ecr get-login --region ap-southeast-1 --no-include-email)
+            # docker build
+            - export BASE_TAG=${AWS_REGISTRY_URL}:$(echo $BITBUCKET_COMMIT | cut -c1-7)
+            - export BUILD_ID_TAG=${AWS_REGISTRY_URL}:build-$BITBUCKET_BUILD_NUMBER
+            # - export BRANCH_TAG=${AWS_REGISTRY_URL}:${BITBUCKET_BRANCH}-latest
+            - docker build -t ${BASE_TAG} .
+            - docker push ${BASE_TAG}
+            # docker push with bulid_id as tag
+            - docker tag ${BASE_TAG} ${BUILD_ID_TAG}
+            - docker push ${BUILD_ID_TAG}
+            # docker push with branch as tag
+            # - docker tag ${BASE_TAG} ${BRANCH_TAG}
+            # - docker push ${BRANCH_TAG}
+            # if git tag presents
+            - if [ ! -z "$BITBUCKET_TAG" ]; then export GIT_TAG_TAG=${AWS_REGISTRY_URL}:${BITBUCKET_TAG} && docker tag ${BASE_TAG} ${GIT_TAG_TAG} && docker push ${GIT_TAG_TAG}; fi

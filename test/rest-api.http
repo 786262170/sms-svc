@@ -1,0 +1,45 @@
+GET http://localhost:8085/debug/token/admin
+Accept: */*
+Cache-Control: no-cache
+
+###
+
+GET http://localhost:8085/debug/token/user
+Accept: */*
+Cache-Control: no-cache
+
+
+###
+GET http://localhost:8085/debug/my/test
+Accept: */*
+Cache-Control: no-cache
+#
+###
+
+###
+GET http://localhost:8085/debug/my/smsconf
+Accept: */*
+Cache-Control: no-cache
+#
+###
+
+### Send request login
+POST  http://localhost:8085/member/user/login
+Content-Type: application/json
+
+{
+ "mobile": 2121
+}
+
+### Send request with dynamic variables in request's body
+POST  http://localhost:8085//member/message/verify
+Content-Type: application/json
+
+{
+  "mobile": 2121,
+  "value": "content"
+}
+
+###
+
+
